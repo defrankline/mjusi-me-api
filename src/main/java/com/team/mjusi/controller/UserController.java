@@ -1,11 +1,14 @@
 package com.team.mjusi.controller;
 
 
+import com.team.mjusi.entity.TrainingAttendee;
 import com.team.mjusi.entity.User;
 import com.team.mjusi.entity.dto.UserDto;
+import com.team.mjusi.service.TrainingAttendeeService;
 import com.team.mjusi.service.UserService;
 import com.team.mjusi.util.ApiResponse;
 import lombok.RequiredArgsConstructor;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
@@ -24,6 +27,7 @@ import java.util.Optional;
 @RequiredArgsConstructor
 public class UserController {
     private final UserService userService;
+    private final TrainingAttendeeService attendeeService;
 
     @PostMapping
     public ResponseEntity<?> create(@RequestBody UserDto userDto) throws ParseException {
@@ -39,27 +43,36 @@ public class UserController {
         ResponseEntity<?> validate = validate(userDto);
         if (validate != null) return validate;
 
-        User user = userService.create(userDto);
-        ApiResponse<?> response = new ApiResponse<>("User Created Successfully", user);
-        return new ResponseEntity<>(response, HttpStatus.CREATED);
+        try {
+            User user = userService.create(userDto);
+            ApiResponse<?> response = new ApiResponse<>("User Created Successfully", user);
+            return new ResponseEntity<>(response, HttpStatus.CREATED);
+        } catch (DataIntegrityViolationException e) {
+            ApiResponse<?> response = new ApiResponse<>("Duplicate data", userDto);
+            return new ResponseEntity<>(response, HttpStatus.UNPROCESSABLE_ENTITY);
+        }
     }
 
 
     @GetMapping
-    public ResponseEntity<?> getAll(Principal principal,
-                                    @RequestParam(value = "page", defaultValue = "0") int page,
+    public ResponseEntity<?> getAll(@RequestParam(value = "page", defaultValue = "0") int page,
                                     @RequestParam(value = "size", defaultValue = "0") int size,
                                     @RequestParam(value = "sortBy", defaultValue = "id") String sortBy) {
-        if(size <= 0){
+        if (size <= 0) {
             List<User> items = userService.findAll();
             ApiResponse<?> response = new ApiResponse<>("Users", items);
             return new ResponseEntity<>(response, HttpStatus.OK);
-        } else{
+        } else {
             Pageable pageable = PageRequest.of(page, size, Sort.by("id").ascending());
             Page<User> items = userService.findAll(pageable);
-            ApiResponse<?> response = new ApiResponse<>("Role", items);
+            ApiResponse<?> response = new ApiResponse<>("Users", items);
             return new ResponseEntity<>(response, HttpStatus.OK);
         }
+    }
+
+    @GetMapping("/search")
+    public List<User> search(@RequestParam(value = "query", defaultValue = "_") String query) {
+        return userService.findAll(query);
     }
 
     @GetMapping("/{id}")
@@ -83,9 +96,14 @@ public class UserController {
             userDto.setPassword(row.get().getPassword());
             ResponseEntity<?> validate = validate(userDto);
             if (validate != null) return validate;
-            User user = userService.update(userDto);
-            ApiResponse<?> response = new ApiResponse<>("User Updated Successfully", user);
-            return new ResponseEntity<>(response, HttpStatus.ACCEPTED);
+            try {
+                User user = userService.update(userDto);
+                ApiResponse<?> response = new ApiResponse<>("User Updated Successfully", user);
+                return new ResponseEntity<>(response, HttpStatus.ACCEPTED);
+            } catch (DataIntegrityViolationException e) {
+                ApiResponse<?> response = new ApiResponse<>("Duplicate data", userDto);
+                return new ResponseEntity<>(response, HttpStatus.UNPROCESSABLE_ENTITY);
+            }
         } else {
             ApiResponse<?> response = new ApiResponse<>("User Not Found", userDto);
             return new ResponseEntity<>(response, HttpStatus.NOT_FOUND);
@@ -96,6 +114,12 @@ public class UserController {
     public ResponseEntity<?> delete(@PathVariable("id") Long id) {
         Optional<User> row = userService.findById(id);
         if (row.isPresent()) {
+            List<TrainingAttendee> attendees = attendeeService.findAllByUserId(id);
+            if (attendees.size() > 0) {
+                attendees.forEach(trainingAttendee -> {
+                    attendeeService.delete(trainingAttendee.getId());
+                });
+            }
             userService.delete(id);
             ApiResponse<?> response = new ApiResponse<>("No Content", "User Deleted Successfully");
             return new ResponseEntity<>(response, HttpStatus.ACCEPTED);

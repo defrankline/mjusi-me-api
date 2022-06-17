@@ -1,7 +1,6 @@
 package com.team.mjusi.service.impl;
 
 
-import com.fasterxml.jackson.databind.ObjectMapper;
 import com.team.mjusi.entity.Role;
 import com.team.mjusi.entity.User;
 import com.team.mjusi.entity.dto.UserDto;
@@ -11,49 +10,26 @@ import com.team.mjusi.service.UserService;
 import lombok.RequiredArgsConstructor;
 import org.modelmapper.ModelMapper;
 import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
-import org.springframework.security.core.authority.SimpleGrantedAuthority;
-import org.springframework.security.core.userdetails.UserDetails;
-import org.springframework.security.core.userdetails.UserDetailsService;
-import org.springframework.security.core.userdetails.UsernameNotFoundException;
-import org.springframework.security.crypto.password.PasswordEncoder;
+import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import javax.servlet.http.HttpServletResponse;
-import java.io.IOException;
 import java.security.Principal;
 import java.text.ParseException;
-import java.util.*;
-
-import static org.springframework.http.MediaType.APPLICATION_JSON_VALUE;
+import java.util.HashSet;
+import java.util.List;
+import java.util.Optional;
+import java.util.Set;
 
 @Service
 @Transactional
 @RequiredArgsConstructor
-public class UserServiceImpl implements UserService, UserDetailsService {
+public class UserServiceImpl implements UserService {
     private final UserRepository repository;
-    private final PasswordEncoder passwordEncoder;
     private final ModelMapper modelMapper;
     private final RoleService roleService;
-
-    @Override
-    public UserDetails loadUserByUsername(String s) throws UsernameNotFoundException {
-        Optional<User> row = repository.findByUsernameAndActiveTrue(s);
-        if (row.isPresent()) {
-            User user = row.get();
-            Set<Role> roles = user.getRoles();
-            Collection<SimpleGrantedAuthority> authorities = new ArrayList<>();
-            if (roles.size() > 0) {
-                roles.forEach(role -> authorities.add(new SimpleGrantedAuthority(role.getName())));
-            }
-            return new org.springframework.security.core.userdetails.User(
-                    user.getUsername(), user.getPassword(), authorities
-            );
-        } else {
-            throw new UsernameNotFoundException("Username not found");
-        }
-    }
 
     @Override
     public Optional<User> findFirstByUsername(String username) {
@@ -84,7 +60,6 @@ public class UserServiceImpl implements UserService, UserDetailsService {
     @Override
     public User create(UserDto userDto) throws ParseException {
         User user = convertToEntity(userDto);
-        user.setPassword(passwordEncoder.encode(user.getPassword()));
         return store(userDto, user);
     }
 
@@ -134,13 +109,9 @@ public class UserServiceImpl implements UserService, UserDetailsService {
     }
 
     @Override
-    public void tokenResponse(HttpServletResponse response, String refreshToken, String accessToken) throws IOException {
-        Map<String, Object> tokens = new HashMap<>();
-        tokens.put("accessToken", accessToken);
-        tokens.put("refreshToken", refreshToken);
-        tokens.put("tokeExpire", System.currentTimeMillis() + 1440 * 60 * 1000);
-
-        response.setContentType(APPLICATION_JSON_VALUE);
-        new ObjectMapper().writeValue(response.getOutputStream(), tokens);
+    public List<User> findAll(String query) {
+        Pageable pageable = PageRequest.of(0, 10, Sort.by("name").ascending());
+        Page<User> page = repository.findAll(query, pageable);
+        return page.getContent();
     }
 }

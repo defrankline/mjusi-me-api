@@ -80,7 +80,7 @@ public class UserRoleController {
             return new ResponseEntity<>(response, HttpStatus.NOT_FOUND);
         }
         userRoleService.delete(id);
-        ApiResponse<?> response = new ApiResponse<>("Success", 200);
+        ApiResponse<?> response = new ApiResponse<>("Success");
         return new ResponseEntity<>(response, HttpStatus.OK);
     }
 }

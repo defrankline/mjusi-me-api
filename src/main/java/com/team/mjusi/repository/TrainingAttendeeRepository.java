@@ -4,7 +4,6 @@ import com.team.mjusi.entity.TrainingAttendee;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
-import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
@@ -17,12 +16,11 @@ public interface TrainingAttendeeRepository extends JpaRepository<TrainingAttend
 
     List<TrainingAttendee> findAllByUserId(Long userId);
 
-    Optional<TrainingAttendee> findByUserIdAndTrainingId(Long userId, Long trainingId);
+    Page<TrainingAttendee> findAllByUserId(Long userId, Pageable pageable);
 
-    int countAllByUserIdAndTrainingId(Long userId, Long trainingId);
+    List<TrainingAttendee> findAllByTrainingId(Long trainingId);
 
-    @Query("SELECT ur.training.name FROM TrainingAttendee ur WHERE ur.user.id =:userId")
-    List<String> userTrainings(@Param("userId") Long userId);
+    Page<TrainingAttendee> findAllByTrainingId(Long trainingId, Pageable pageable);
 
-    Page<TrainingAttendee> findAllByUserId(@Param("userId") Long userId, Pageable pageable);
+    Optional<TrainingAttendee> findFirstByUserIdAndTrainingId(Long userId, Long trainingId);
 }

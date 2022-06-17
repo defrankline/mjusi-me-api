@@ -22,6 +22,7 @@ public interface UserService {
     List<User> findAll();
 
     Page<User> findAll(Pageable pageable);
+    List<User> findAll(String query);
 
     User save(User user);
 
@@ -40,7 +41,4 @@ public interface UserService {
     User getCurrentUser(Principal principal);
 
     Optional<User> findFirstByUsername(String username);
-
-    void tokenResponse(HttpServletResponse response, String refreshToken, String accessToken) throws IOException;
-
 }
